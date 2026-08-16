@@ -1,103 +1,62 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>CS Mobile</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; touch-action: none; font-family: sans-serif; }
-        
-        /* Прицел */
-        #crosshair {
-            position: absolute; top: 50%; left: 50%;
-            width: 10px; height: 10px; transform: translate(-50%, -50%);
-            pointer-events: none; z-index: 10;
-        }
-        #crosshair::before, #crosshair::after { content: ''; position: absolute; background: #00ff00; }
-        #crosshair::before { top: 4px; left: -8px; width: 26px; height: 2px; }
-        #crosshair::after { top: -8px; left: 4px; width: 2px; height: 26px; }
-
-        /* Кнопка выстрела */
-        #fireBtn {
-            position: absolute; bottom: 30px; right: 30px;
-            width: 80px; height: 80px; border-radius: 50%;
-            background: rgba(255, 0, 0, 0.7); border: 3px solid #fff;
-            color: white; font-weight: bold; font-size: 16px;
-            z-index: 10; touch-action: manipulation;
-        }
-
-        /* Зона вращения камеры */
-        #lookZone {
-            position: absolute; top: 0; right: 0; width: 100vw; height: 100vh; z-index: 5;
-        }
+        body { margin: 0; overflow: hidden; background: #87CEEB; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00ff00; font-size: 24px; font-family: sans-serif; pointer-events: none; }
+        #fireBtn { position: absolute; bottom: 30px; right: 30px; width: 80px; height: 80px; background: red; color: white; border-radius: 50%; border: 3px solid white; font-weight: bold; font-size: 18px; }
     </style>
 </head>
 <body>
-
-    <div id="crosshair"></div>
+    <div id="crosshair">+</div>
     <button id="fireBtn">FIRE</button>
-    <div id="lookZone"></div>
 
-    <!-- Подключаем Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-    <script>
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87ceeb);
-
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 1.6, 0);
-
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.DirectionalLight(0xffffff, 1.2);
-        light.position.set(10, 20, 10);
+        const light = new THREE.AmbientLight(0xffffff, 1.5);
         scene.add(light);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
+        dirLight.position.set(5, 10, 7);
+        scene.add(dirLight);
 
-        const loader = new THREE.GLTFLoader();
+        scene.add(camera);
+
+        // Опускаем камеру на уровень земли
+        camera.position.set(0, 1.7, 0);
+
+        const loader = new GLTFLoader();
 
         // Загрузка карты
-        loader.load('map.glb', (gltf) => { scene.add(gltf.scene); });
+        loader.load('map.glb', (gltf) => {
+            scene.add(gltf.scene);
+        });
 
-        // Загрузка оружия
+        // Загрузка и позиционирование автомата
         loader.load('ak47.glb', (gltf) => {
             const gun = gltf.scene;
-            gun.position.set(0.2, -0.25, -0.5);
-            gun.scale.set(0.1, 0.1, 0.1);
+            // Центрируем и пододвигаем оружие в руки
+            gun.position.set(0.2, -0.3, -0.5);
+            gun.scale.set(0.5, 0.5, 0.5); // Уменьшаем размер, если слишком большой
             camera.add(gun);
-            scene.add(camera);
-        });
-
-        // Управление
-        let lon = 0, lat = 0, touchStartX = 0, touchStartY = 0;
-        const lookZone = document.getElementById('lookZone');
-
-        lookZone.addEventListener('touchstart', (e) => {
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
-        });
-
-        lookZone.addEventListener('touchmove', (e) => {
-            lon -= (e.touches[0].clientX - touchStartX) * 0.2;
-            lat -= (e.touches[0].clientY - touchStartY) * 0.2;
-            touchStartX = e.touches[0].clientX;
-            touchStartY = e.touches[0].clientY;
         });
 
         function animate() {
             requestAnimationFrame(animate);
-            lat = Math.max(-85, Math.min(85, lat));
-            const phi = THREE.MathUtils.degToRad(90 - lat);
-            const theta = THREE.MathUtils.degToRad(lon);
-            camera.lookAt(camera.position.x + Math.sin(phi) * Math.cos(theta), camera.position.y + Math.cos(phi), camera.position.z + Math.sin(phi) * Math.sin(theta));
             renderer.render(scene, camera);
         }
         animate();
     </script>
 </body>
 </html>
-
