@@ -1,4 +1,4 @@
-                <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
@@ -25,15 +25,15 @@
 
         /* HUD */
         #game-ui { display: none; position: absolute; inset: 0; pointer-events: none; }
-        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00ff00; font-size: 20px; text-shadow: 0 0 2px black; }
+        #crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #00ff00; font-size: 18px; text-shadow: 0 0 2px black; }
         
-        #joystick-zone { position: absolute; bottom: 20px; left: 20px; width: 140px; height: 140px; background: rgba(255,255,255,0.1); border-radius: 50%; pointer-events: auto; }
-        #joystick-stick { position: absolute; top: 50%; left: 50%; width: 45px; height: 45px; background: rgba(255,255,255,0.4); border-radius: 50%; transform: translate(-50%, -50%); }
+        #joystick-zone { position: absolute; bottom: 20px; left: 20px; width: 130px; height: 130px; background: rgba(255,255,255,0.1); border-radius: 50%; pointer-events: auto; }
+        #joystick-stick { position: absolute; top: 50%; left: 50%; width: 40px; height: 40px; background: rgba(255,255,255,0.4); border-radius: 50%; transform: translate(-50%, -50%); }
         
         #touch-look-zone { position: absolute; top: 0; right: 0; width: 60%; height: 100%; pointer-events: auto; }
 
-        #fire-btn { position: absolute; bottom: 30px; right: 30px; width: 85px; height: 85px; background: rgba(255,0,0,0.6); border: 3px solid white; border-radius: 50%; color: white; font-weight: bold; font-size: 16px; pointer-events: auto; }
-        #ammo-counter { position: absolute; bottom: 25px; left: 50%; transform: translateX(-50%); font-size: 22px; font-weight: bold; background: rgba(0,0,0,0.6); padding: 6px 18px; border-radius: 8px; }
+        #fire-btn { position: absolute; bottom: 30px; right: 30px; width: 80px; height: 80px; background: rgba(255,0,0,0.6); border: 3px solid white; border-radius: 50%; color: white; font-weight: bold; font-size: 15px; pointer-events: auto; }
+        #ammo-counter { position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); font-size: 20px; font-weight: bold; background: rgba(0,0,0,0.6); padding: 5px 15px; border-radius: 8px; }
     </style>
 </head>
 <body>
@@ -71,50 +71,53 @@
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        let scene, camera, renderer, gun;
+        let scene, camera, renderer, gun, mapModel;
         let ammo = 30;
         const moveState = { forward: 0, right: 0 };
         let lookTouchId = null, lastTouchX = 0, lastTouchY = 0;
         let lon = 0, lat = 0;
-
-        // Точки спавна для команд
-        const spawns = {
-            T: { x: -40, y: 3, z: 50 },
-            CT: { x: 40, y: 3, z: -50 }
-        };
+        let mapMinY = 0;
 
         function init() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 3000);
+            camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.05, 1000);
             
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            const light = new THREE.AmbientLight(0xffffff, 2.5);
+            const light = new THREE.AmbientLight(0xffffff, 2.0);
             scene.add(light);
-            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
-            dirLight.position.set(20, 40, 20);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+            dirLight.position.set(20, 50, 20);
             scene.add(dirLight);
 
             scene.add(camera);
 
             const loader = new GLTFLoader();
 
-            // Загрузка и УВЕЛИЧЕНИЕ карты в 20 раз
+            // Загрузка карты и точная настройка высоты
             loader.load('map.glb', (gltf) => {
-                const mapModel = gltf.scene;
-                mapModel.scale.set(20, 20, 20);
+                mapModel = gltf.scene;
+                
+                // Вычисляем границы карты
+                const box = new THREE.Box3().setFromObject(mapModel);
+                mapMinY = box.min.y;
+
                 scene.add(mapModel);
             });
             
-            // Настройка автомата
+            // Настройка автомата и рук под размер Standoff 2
             loader.load('ak47.glb', (gltf) => {
                 gun = gltf.scene;
-                gun.position.set(0.18, -0.18, -0.35);
-                gun.scale.set(0.6, 0.6, 0.6);
+
+                // Подогнать масштаб рук под камеру
+                gun.scale.set(0.12, 0.12, 0.12);
+                gun.position.set(0.12, -0.14, -0.22);
+                gun.rotation.set(0, Math.PI, 0); // Повернуть стволом вперед
+
                 camera.add(gun);
             });
 
@@ -123,9 +126,14 @@
         }
 
         window.startGame = function(team) {
-            // Телепорт на спавн выбранной команды
-            const spawnPos = spawns[team];
-            camera.position.set(spawnPos.x, spawnPos.y, spawnPos.z);
+            // Установка игрока ровно на землю (высота глаз = 1.6м над полом)
+            const playerHeight = mapMinY + 1.6;
+
+            if (team === 'T') {
+                camera.position.set(-5, playerHeight, 5);
+            } else {
+                camera.position.set(5, playerHeight, -5);
+            }
 
             document.getElementById('main-menu').style.display = 'none';
             document.getElementById('game-ui').style.display = 'block';
@@ -141,8 +149,8 @@
                 const rect = zone.getBoundingClientRect();
                 const dx = touch.clientX - (rect.left + rect.width/2);
                 const dy = touch.clientY - (rect.top + rect.height/2);
-                moveState.right = dx / 70;
-                moveState.forward = -dy / 70;
+                moveState.right = dx / 65;
+                moveState.forward = -dy / 65;
                 stick.style.transform = `translate(-50%, -50%) translate(${dx/2}px, ${dy/2}px)`;
             });
 
@@ -185,8 +193,8 @@
                     osc.start(); osc.stop(audioCtx.currentTime + 0.1);
 
                     if (gun) {
-                        gun.position.z += 0.02;
-                        setTimeout(() => gun.position.z -= 0.02, 50);
+                        gun.position.z += 0.01;
+                        setTimeout(() => gun.position.z -= 0.01, 50);
                     }
                 }
             });
@@ -195,6 +203,7 @@
         function animate() {
             requestAnimationFrame(animate);
 
+            // Поворот камеры
             const phi = THREE.MathUtils.degToRad(90 - lat);
             const theta = THREE.MathUtils.degToRad(lon);
             const target = new THREE.Vector3(
@@ -204,9 +213,13 @@
             );
             camera.lookAt(camera.position.clone().add(target));
 
-            // Скорость передвижения по увеличенной карте
-            camera.translateZ(-moveState.forward * 0.25);
-            camera.translateX(moveState.right * 0.25);
+            // Движение игрока
+            const speed = 0.08;
+            camera.translateZ(-moveState.forward * speed);
+            camera.translateX(moveState.right * speed);
+
+            // Фиксация высоты (чтобы не взлетать и не проваливаться сквозь пол)
+            camera.position.y = mapMinY + 1.6;
 
             renderer.render(scene, camera);
         }
