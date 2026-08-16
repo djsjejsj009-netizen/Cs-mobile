@@ -63,7 +63,7 @@
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        let scene, camera, renderer, gun;
+        let scene, camera, renderer, gun, mapModel;
         let ammo = 30;
         const moveState = { forward: 0, right: 0 };
         let lookTouchId = null, lastTouchX = 0, lastTouchY = 0;
@@ -73,27 +73,50 @@
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87CEEB);
 
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.01, 2000);
             
-            // Спавнимся прямо в центре карты на высоте человеческого роста
-            camera.position.set(0, 1.6, 0);
-
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.body.appendChild(renderer.domElement);
 
-            const light = new THREE.AmbientLight(0xffffff, 2);
+            const light = new THREE.AmbientLight(0xffffff, 2.5);
             scene.add(light);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
+            dirLight.position.set(10, 20, 10);
+            scene.add(dirLight);
+
             scene.add(camera);
 
             const loader = new GLTFLoader();
-            loader.load('map.glb', (gltf) => scene.add(gltf.scene));
+
+            // Авто-выравнивание карты
+            loader.load('map.glb', (gltf) => {
+                mapModel = gltf.scene;
+                const box = new THREE.Box3().setFromObject(mapModel);
+                const center = box.getCenter(new THREE.Vector3());
+                mapModel.position.sub(center); // Центрируем карту в точку (0,0,0)
+                scene.add(mapModel);
+
+                // Ставим камеру ровно над полом в центре карты
+                camera.position.set(0, box.min.y + 1.7, 0);
+            });
             
-            // Настройка размера и позиции оружия
+            // Настройка и авто-подгонка автомата
             loader.load('ak47.glb', (gltf) => {
                 gun = gltf.scene;
-                gun.position.set(0.15, -0.25, -0.4); // Позиция перед глазами
-                gun.scale.set(1.2, 1.2, 1.2);        // Увеличили руки и автомат
+                
+                // Сбрасываем центровку оружия
+                const box = new THREE.Box3().setFromObject(gun);
+                const size = box.getSize(new THREE.Vector3());
+                const maxDim = Math.max(size.x, size.y, size.z);
+                
+                // Масштабируем, если модель слишком огромная или мелкая
+                if (maxDim > 0) {
+                    const scale = 0.5 / maxDim;
+                    gun.scale.set(scale, scale, scale);
+                }
+
+                gun.position.set(0.15, -0.15, -0.3);
                 camera.add(gun);
             });
 
@@ -160,8 +183,8 @@
                     osc.start(); osc.stop(audioCtx.currentTime + 0.1);
 
                     if (gun) {
-                        gun.position.z += 0.03;
-                        setTimeout(() => gun.position.z -= 0.03, 50);
+                        gun.position.z += 0.02;
+                        setTimeout(() => gun.position.z -= 0.02, 50);
                     }
                 }
             });
@@ -189,3 +212,4 @@
     </script>
 </body>
 </html>
+
