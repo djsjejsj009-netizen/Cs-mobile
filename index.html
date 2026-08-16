@@ -20,21 +20,20 @@
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
         const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x87CEEB); // Голубое небо
+
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        const light = new THREE.AmbientLight(0xffffff, 1.5);
+        const light = new THREE.AmbientLight(0xffffff, 2);
         scene.add(light);
-        const dirLight = new THREE.DirectionalLight(0xffffff, 1);
-        dirLight.position.set(5, 10, 7);
-        scene.add(dirLight);
 
         scene.add(camera);
 
-        // Опускаем камеру на уровень земли
-        camera.position.set(0, 1.7, 0);
+        // Поднимаем камеру чуть выше, чтобы не застревать в полу
+        camera.position.set(0, 5, 10);
 
         const loader = new GLTFLoader();
 
@@ -43,12 +42,11 @@
             scene.add(gltf.scene);
         });
 
-        // Загрузка и позиционирование автомата
+        // Загрузка автомата
         loader.load('ak47.glb', (gltf) => {
             const gun = gltf.scene;
-            // Центрируем и пододвигаем оружие в руки
             gun.position.set(0.2, -0.3, -0.5);
-            gun.scale.set(0.5, 0.5, 0.5); // Уменьшаем размер, если слишком большой
+            gun.scale.set(0.5, 0.5, 0.5);
             camera.add(gun);
         });
 
